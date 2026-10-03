@@ -1,31 +1,42 @@
-# 🚀 AWS EC2 Auto Scaling Web Server
+# AWS EC2 Auto Scaling Web Server
 
-> A hands-on AWS project demonstrating automated EC2 provisioning, Apache web-server deployment, and CPU-based horizontal scaling using an EC2 Launch Template, Auto Scaling Group, and CloudWatch-backed Target Tracking.
+> A hands-on AWS project demonstrating automated EC2 web-server provisioning, Auto Scaling Group capacity management, CloudWatch-based target tracking, horizontal scale-out, and scale-in.
 
-[![AWS](https://img.shields.io/badge/AWS-EC2%20%7C%20Auto%20Scaling-orange?logo=amazonaws)](https://aws.amazon.com/ec2/)
-[![CloudWatch](https://img.shields.io/badge/AWS-CloudWatch-blue?logo=amazoncloudwatch)](https://aws.amazon.com/cloudwatch/)
-[![Apache](https://img.shields.io/badge/Web%20Server-Apache-red?logo=apache)](https://httpd.apache.org/)
+[![AWS](https://img.shields.io/badge/AWS-Cloud-orange?logo=amazonaws)](https://aws.amazon.com/)
+[![EC2](https://img.shields.io/badge/Amazon%20EC2-Auto%20Scaling-blue?logo=amazonec2)](https://aws.amazon.com/ec2/)
+[![CloudWatch](https://img.shields.io/badge/Amazon%20CloudWatch-Monitoring-purple?logo=amazoncloudwatch)](https://aws.amazon.com/cloudwatch/)
+[![Apache](https://img.shields.io/badge/Apache-HTTP%20Server-red?logo=apache)](https://httpd.apache.org/)
 
 ---
 
 ## 📌 Project Overview
 
-This project implements a small, self-managing web-server environment on **Amazon Web Services (AWS)**.
+This project implements an **EC2 Auto Scaling environment on AWS** in which web-server instances are provisioned automatically from an EC2 Launch Template and managed by an Auto Scaling Group (ASG).
 
-An **EC2 Launch Template** defines how new instances are created. An **Auto Scaling Group (ASG)** uses that template to maintain the required number of healthy EC2 instances. A **Target Tracking Scaling Policy** monitors average CPU utilization and automatically adjusts the number of instances within the configured capacity limits.
+The implementation demonstrates the complete lifecycle requested by the project:
 
-Each EC2 instance installs **Apache HTTP Server automatically through EC2 User Data**. The generated web page displays the instance ID, which makes it easy to verify that different EC2 instances are being launched and serving the application.
+**Launch Template → Automated Web Server Deployment → Auto Scaling Group → CloudWatch CPU Metric → Target Tracking → Scale-Out → Scale-In**
 
-### Project objectives
+Each newly launched EC2 instance is configured automatically using **EC2 User Data**. Apache HTTP Server is installed during instance initialization, and the web page displays the instance ID so that different instances can be distinguished during testing.
 
-- Create an EC2 Launch Template.
-- Configure an Auto Scaling Group.
-- Set minimum, desired, and maximum capacity.
-- Automatically install and start Apache on new instances.
-- Use CPU utilization as the scaling signal.
-- Demonstrate **scale-out** under high CPU load.
-- Demonstrate **scale-in** after CPU load is removed.
-- Verify that newly launched instances automatically serve the web page.
+The scaling test uses a **Target Tracking Scaling Policy** based on **Average CPU Utilization**.
+
+---
+
+## 🎯 Objectives
+
+The project was built to demonstrate:
+
+- Creation of an EC2 Launch Template.
+- Automated web-server installation using EC2 User Data.
+- Creation of an EC2 Auto Scaling Group.
+- Configuration of minimum, desired, and maximum capacity.
+- Monitoring of EC2 CPU utilization.
+- Configuration of a Target Tracking scaling policy.
+- Demonstration of horizontal scale-out.
+- Demonstration of horizontal scale-in.
+- Verification that a newly launched instance is automatically configured as a web server.
+- Collection of AWS Console screenshots as implementation evidence.
 
 ---
 
@@ -38,59 +49,100 @@ flowchart TD
     B --> D[EC2 Instance 2]
     B --> E[EC2 Instance 3]
 
-    C --> F[Apache HTTP Server]
-    D --> F
-    E --> F
+    LT[EC2 User Data] --> C
+    LT --> D
+    LT --> E
 
-    F --> G[Instance-specific Web Page]
+    C --> W[Apache HTTP Server]
+    D --> W
+    E --> W
 
-    H[CPU Utilization] --> I[CloudWatch Metrics]
-    I --> J[Target Tracking Policy]
-    J --> B
+    C --> CW[CloudWatch EC2 CPU Metric]
+    D --> CW
+    E --> CW
+
+    CW --> P[Target Tracking Policy]
+    P -->|CPU above target| SO[Scale Out]
+    P -->|CPU below target| SI[Scale In]
+
+    SO --> B
+    SI --> B
 ```
 
-### Scaling flow
+### Logical flow
 
 ```text
-                 CPU Utilization
-                        │
-                        ▼
-                CloudWatch Metrics
-                        │
-                        ▼
-             Target Tracking Policy
-                        │
-          ┌─────────────┴─────────────┐
-          │                           │
-     CPU increases               CPU decreases
-          │                           │
-          ▼                           ▼
-      Scale Out                   Scale In
-          │                           │
-          ▼                           ▼
-   Launch instances            Remove instances
+                    ┌──────────────────────────┐
+                    │     Launch Template      │
+                    │ AMI + t3.micro + User   │
+                    │ Data + Security Group   │
+                    └────────────┬─────────────┘
+                                 │
+                                 ▼
+                    ┌──────────────────────────┐
+                    │   Auto Scaling Group     │
+                    │   Min: 1 | Desired: 2   │
+                    │   Max: 3                 │
+                    └────────────┬─────────────┘
+                                 │
+              ┌──────────────────┼──────────────────┐
+              ▼                  ▼                  ▼
+          EC2 #1              EC2 #2              EC2 #3
+          Apache              Apache              Apache
+              │                  │                  │
+              └──────────────────┼──────────────────┘
+                                 ▼
+                     CloudWatch CPU Metrics
+                                 │
+                                 ▼
+                    Target Tracking Policy
+                       ┌─────────┴─────────┐
+                       ▼                   ▼
+                   Scale Out           Scale In
 ```
 
-> **Note:** The project uses an Auto Scaling Target Tracking policy. AWS continuously evaluates the selected metric and adjusts ASG capacity toward the configured target, subject to the minimum and maximum capacity limits.
+> **Scope:** This implementation focuses on the EC2 Launch Template + Auto Scaling Group + CloudWatch/Target Tracking workflow. An Application Load Balancer is not part of this implementation.
 
 ---
 
-## ☁️ AWS Services & Components
+## ☁️ AWS Services and Components
 
 | Component | Purpose |
 |---|---|
-| **Amazon EC2** | Runs the web-server instances |
-| **EC2 Launch Template** | Defines the configuration used to launch EC2 instances |
-| **EC2 Auto Scaling Group** | Maintains and adjusts the desired number of instances |
-| **Amazon CloudWatch** | Provides CPU utilization metrics used by the scaling mechanism |
-| **Target Tracking Policy** | Adjusts capacity toward the configured CPU target |
+| **Amazon EC2** | Hosts the web-server instances |
+| **EC2 Launch Template** | Defines the configuration used for new EC2 instances |
+| **EC2 Auto Scaling Group** | Maintains and adjusts the EC2 instance capacity |
+| **Amazon CloudWatch** | Provides monitoring metrics such as CPU utilization |
+| **Target Tracking Policy** | Adjusts ASG desired capacity toward the configured CPU target |
 | **Security Group** | Controls network access to the EC2 instances |
-| **Apache HTTP Server** | Serves the web page |
-| **EC2 User Data** | Automates software installation and initial server configuration |
+| **EC2 User Data** | Automates initial server configuration |
+| **Apache HTTP Server** | Serves the test web page |
 
 ---
 
-## 🌎 AWS Region
+## ⚙️ Environment Configuration
+
+| Setting | Project Value |
+|---|---|
+| AWS Region | `us-east-1` — US East (N. Virginia) |
+| Launch Template | `autoscaling-web-template` |
+| Auto Scaling Group | `autoscaling-web-asg` |
+| Instance Type | `t3.micro` |
+| AMI | Amazon Linux 2023 |
+| Web Server | Apache HTTP Server (`httpd`) |
+| Scaling Method | Target Tracking |
+| Scaling Metric | Average CPU Utilization |
+| CPU Target | `50%` |
+| Minimum Capacity | `1` |
+| Desired Capacity | `2` |
+| Maximum Capacity | `3` |
+| Instance Warmup | `300` seconds |
+
+> These values are taken from the AWS Console evidence included in this repository.
+
+---
+
+# 1. 🌎 AWS Region
 
 The project was implemented in:
 
@@ -103,63 +155,65 @@ Region Code : us-east-1
 
 ---
 
-# 1. 🔐 Security Group
+# 2. 🔐 Security Group
 
-A security group named:
+The web-server environment uses the security group:
 
 ```text
 autoscaling-web-sg
 ```
 
-was used for the web-server environment.
-
-The security group was configured to permit HTTP access so that the Apache web server could be tested from a browser.
+The security group provides the network access required for testing the HTTP web server.
 
 ![Security Group](screenshots/02-security-group.jpg)
 
-> **Security note:** For a production environment, inbound rules should be restricted to the minimum required sources. Avoid opening SSH (`22`) to `0.0.0.0/0` unless there is a specific reason to do so.
+### Security consideration
+
+For a production deployment:
+
+- Allow only the ports that are actually required.
+- Restrict source CIDRs where possible.
+- Avoid exposing SSH (`22`) to `0.0.0.0/0` unless there is a justified operational requirement.
+- Prefer private subnets and controlled access for application instances in production architectures.
 
 ---
 
-# 2. 🚀 EC2 Launch Template
+# 3. 🚀 EC2 Launch Template
 
 The Launch Template is the reusable instance definition used by the Auto Scaling Group.
 
-### Launch Template
-
 ```text
-autoscaling-web-template
+Launch Template
+└── autoscaling-web-template
 ```
 
-The template contains the configuration required to create a web-server instance, including:
+The project Launch Template uses:
 
-- AMI
-- Instance type
-- Key pair
-- Network/security configuration
-- EC2 User Data
-- Other instance launch settings
-
-The project used a `t3.micro` instance type.
+- Amazon Linux 2023
+- `t3.micro`
+- `autoscaling-web-sg`
+- 8 GiB root volume
+- EC2 User Data for automated Apache installation
 
 ![Launch Template](screenshots/04-launch-template.jpg)
 
 ---
 
-# 3. 📝 EC2 User Data
+# 4. 📝 EC2 User Data — Automated Web Server Deployment
 
-EC2 User Data is used to bootstrap every newly launched instance automatically.
+The web server is deployed automatically when an EC2 instance starts.
 
-The startup script:
+The User Data process:
 
-1. Updates installed packages.
+1. Updates the system packages.
 2. Installs Apache HTTP Server.
-3. Enables Apache to start automatically at boot.
-4. Starts the Apache service.
-5. Retrieves the EC2 Instance ID using **IMDSv2**.
-6. Generates an HTML page containing the instance ID.
+3. Enables Apache at boot.
+4. Starts Apache.
+5. Requests an IMDSv2 token.
+6. Retrieves the EC2 instance ID.
+7. Creates an HTML page showing the instance ID.
 
-### User Data script
+### User Data
 
 ```bash
 #!/bin/bash
@@ -193,17 +247,25 @@ cat <<EOF > /var/www/html/index.html
 EOF
 ```
 
-### Why IMDSv2?
+### Why the instance ID is displayed
 
-The script uses the EC2 Instance Metadata Service v2 token flow instead of directly requesting metadata without a token. This is the recommended metadata access approach when IMDSv2 is enabled.
+Displaying the instance ID makes it easy to verify that different EC2 instances were created and configured independently by the Auto Scaling Group.
+
+### IMDSv2
+
+The script uses the EC2 Instance Metadata Service v2 token flow instead of an unauthenticated metadata request.
 
 ![User Data](screenshots/03-user-data.jpg)
 
+A second captured version of the User Data configuration is also retained:
+
+![User Data — Additional Evidence](screenshots/03-user-data-v2.jpg)
+
 ---
 
-# 4. ⚙️ Auto Scaling Group
+# 5. ⚙️ Auto Scaling Group
 
-The Auto Scaling Group was created using the Launch Template:
+The Auto Scaling Group was configured as:
 
 ```text
 Auto Scaling Group : autoscaling-web-asg
@@ -212,323 +274,272 @@ Launch Template    : autoscaling-web-template
 
 The ASG is responsible for:
 
-- Launching instances from the Launch Template.
+- Launching EC2 instances from the Launch Template.
 - Maintaining the configured capacity.
-- Replacing unhealthy instances when required.
+- Replacing unhealthy instances when applicable.
 - Increasing capacity when the scaling policy requires it.
 - Decreasing capacity when the scaling policy requires it.
 
-### Launch Template configuration
+### Launch Template selection
 
 ![ASG Launch Template](screenshots/05-asg-launch-template.jpg)
+
+An additional Launch Template configuration capture is retained for reference:
+
+![ASG Launch Template — Additional Evidence](screenshots/05-asg-launch-template-v2.jpg)
 
 ### Network configuration
 
 ![ASG Network](screenshots/06-asg-network.jpg)
 
-### ASG created
+### ASG creation
 
 ![ASG Created](screenshots/09-asg-created.jpg)
 
 ---
 
-# 5. 📊 Capacity Configuration
+# 6. 📏 Capacity Configuration
 
-The Auto Scaling Group was configured with the following capacity limits:
+The Auto Scaling Group was configured with:
 
-| Setting | Value |
+| Capacity setting | Value |
 |---|---:|
-| **Minimum capacity** | `1` |
-| **Desired capacity** | `2` |
-| **Maximum capacity** | `3` |
+| Minimum | `1` |
+| Desired | `2` |
+| Maximum | `3` |
 
-This means:
+### Meaning
 
-- The ASG should maintain **at least 1 instance**.
-- The initial/target capacity for the test was **2 instances**.
-- The ASG can automatically increase to a maximum of **3 instances**.
+- **Minimum = 1:** ASG should not intentionally scale below one instance.
+- **Desired = 2:** The configured initial/target capacity was two instances.
+- **Maximum = 3:** The ASG can scale out to at most three instances under this configuration.
 
-![Capacity Configuration](screenshots/07-asg-capacity.jpg)
+![ASG Capacity](screenshots/07-asg-capacity.jpg)
 
 ---
 
-# 6. 📈 Target Tracking Scaling Policy
+# 7. 📈 Target Tracking Scaling Policy
 
-A **Target Tracking Scaling Policy** was configured using average EC2 CPU utilization.
+The project uses an **EC2 Target Tracking Scaling Policy**.
 
-```text
-Metric      : Average CPU Utilization
-Target      : 50%
-Minimum     : 1 instance
-Maximum     : 3 instances
-```
-
-The target tracking policy attempts to keep average CPU utilization close to the configured target by adjusting the ASG capacity.
-
-### Expected behavior
+The captured configuration shows:
 
 ```text
-CPU utilization increases
-        ↓
-Target Tracking detects increased demand
-        ↓
-ASG launches additional instance(s)
-        ↓
-CPU load is distributed across more capacity
+Policy type      : Target Tracking
+Metric           : Average CPU Utilization
+Target value     : 50%
+Instance warmup  : 300 seconds
+Capacity limits  : 1–3 instances
 ```
 
-And when demand decreases:
+![Target Tracking Policy](screenshots/08-scaling-policy.jpg)
 
-```text
-CPU utilization decreases
-        ↓
-Target Tracking detects lower demand
-        ↓
-ASG can terminate excess capacity
-        ↓
-Capacity moves toward the configured target
-```
-
-![Scaling Policy Configuration](screenshots/08-scaling-policy.jpg)
+A second screenshot provides the scaling-policy configuration/evidence:
 
 ![Scaling Policy Verification](screenshots/14-scaling-policy.jpg)
 
-> **Important:** Scaling is not necessarily instantaneous. Auto Scaling evaluates metrics and uses AWS-managed scaling behavior, so there can be a delay between a change in CPU utilization and an instance launch/termination.
+### Scaling concept
+
+```text
+CPU utilization rises
+        ↓
+Target Tracking evaluates the metric
+        ↓
+ASG increases desired capacity when required
+        ↓
+New EC2 instance launches
+        ↓
+User Data configures Apache automatically
+```
+
+When demand falls:
+
+```text
+CPU utilization falls
+        ↓
+Target Tracking evaluates the metric
+        ↓
+ASG can reduce excess capacity
+        ↓
+EC2 instance is terminated according to ASG behavior
+```
+
+> **Important:** Auto Scaling reactions are not instantaneous. Metric evaluation, policy behavior, instance warmup, and AWS-managed scaling processes introduce a delay between workload changes and capacity changes.
 
 ---
 
-# 7. 🌐 Web Server Verification
+# 8. 🌐 Automatic Web Server Verification
 
-Because Apache is installed through User Data, every EC2 instance launched from the Launch Template should automatically become a web server after initialization completes.
+Because Apache is installed through User Data, a newly launched instance can become a web server without manually installing Apache.
 
-The generated page contains the instance ID.
-
-This makes the instance identity visible during testing and provides a simple way to confirm that different instances were created from the same Launch Template.
-
-### Instance 1
+## Instance 1
 
 ![Web Server Instance 1](screenshots/11-web-server-instance-1.jpg)
 
-### Instance 2
+## Instance 2
 
 ![Web Server Instance 2](screenshots/12-web-server-instance-2.jpg)
 
+The two screenshots show the same application page structure while exposing different instance identities, providing evidence that the web server configuration was applied to individual EC2 instances.
+
 ---
 
-# 8. 🧪 Auto Scaling Test
+# 9. 🧪 Scaling Demonstration
 
-The scaling behavior was tested by increasing CPU utilization and observing the ASG response.
+The scaling behavior was tested by generating CPU load and observing the EC2/Auto Scaling behavior.
 
-## Step 1 — Initial state
+## 9.1 Initial capacity
 
-The ASG started with:
-
-```text
-Minimum  = 1
-Desired  = 2
-Maximum  = 3
-```
-
-Two EC2 instances were initially running.
+The environment was running with two EC2 instances.
 
 ![Two EC2 Instances](screenshots/10-two-ec2-instances.jpg)
+
+The ASG also showed two instances in service:
 
 ![Two In-Service Instances](screenshots/13-asg-two-inservice.jpg)
 
 ---
 
-## Step 2 — Generate CPU load
+## 9.2 Generate CPU load
 
-CPU load was generated on an EC2 instance using the `stress` utility.
+CPU load was generated using the `stress` utility:
 
 ```bash
 sudo dnf install -y stress
 stress --cpu 2 --timeout 600
 ```
 
-The CPU utilization increased and became visible through CloudWatch monitoring.
+The instance CPU utilization increased and was visible through the EC2/CloudWatch monitoring view.
 
-![High CPU CloudWatch Metrics](screenshots/15-high-cpu-cloudwatch.jpg)
+![High CPU Metrics](screenshots/15-high-cpu-cloudwatch.jpg)
+
+> The screenshot records a CPU utilization increase during the test. The exact value shown in the graph varies with the workload and observation interval.
 
 ---
 
-## Step 3 — Scale-out
+## 9.3 Scale-out
 
-As the workload increased, the Target Tracking policy responded by increasing the Auto Scaling Group capacity.
+The ASG subsequently reached three instances:
 
 ```text
-Before: 2 instances
-After : 3 instances
+Before : 2 instances
+After  : 3 instances
 ```
 
-![Scale-out to 3 Instances](screenshots/16-scale-out-3-instances.jpg)
+The captured ASG view shows:
 
-This demonstrates **horizontal scaling**, where additional EC2 instances are launched instead of increasing the size of an existing instance.
+- Desired capacity: `3`
+- Scaling limits: `1–3`
+- Three instances
+- Instances in `InService` state
+- Healthy instance status
+
+![Scale-Out to 3 Instances](screenshots/16-scale-out-3-instances.jpg)
+
+This demonstrates **horizontal scaling (scale-out)**.
 
 ---
 
-## Step 4 — Verify the newly launched instance
+## 9.4 Verify the newly launched instance
 
-The third instance was created automatically by the Auto Scaling Group using the Launch Template.
+The third instance was launched by the Auto Scaling Group from the configured Launch Template.
 
-Because the Launch Template contains the User Data script, Apache was installed automatically on the new instance.
-
-The generated web page was then verified from the new instance.
+Because the Launch Template contains User Data, Apache was automatically configured on the new instance.
 
 ![Third Instance Web Server](screenshots/17-third-instance-web-server.jpg)
 
+This is an important part of the demonstration: scaling does not only create another EC2 instance; it creates an instance that receives the same automated bootstrap configuration.
+
 ---
 
-## Step 5 — Stop the CPU load
+## 9.5 Scale-in
 
-After the CPU stress test was stopped, CPU utilization decreased.
-
-The ASG then reduced capacity according to the Target Tracking policy and configured minimum capacity.
-
-The observed environment returned to a single healthy instance:
+After the workload was reduced, the ASG later showed:
 
 ```text
-3 instances
-      ↓
-Scale-In
-      ↓
-1 instance
+Desired capacity : 1
+Scaling limits   : 1–3
+Instances        : 1
 ```
-
-![Scale-in Verification](screenshots/18-scale-in-2-instances.jpg)
-
-> The screenshot filename is retained from the original project, but the AWS console shown in the screenshot reports **Desired capacity = 1** and **one InService instance**.
-
----
-
-# 9. 🔄 Scaling Behavior Summary
-
-```text
-                    INITIAL STATE
-                         │
-                         ▼
-                  2 EC2 Instances
-                         │
-                         │ High CPU Load
-                         ▼
-                 CloudWatch Metrics
-                         │
-                         ▼
-              Target Tracking Policy
-                         │
-                         ▼
-                    SCALE OUT
-                         │
-                         ▼
-                  3 EC2 Instances
-                         │
-                         │ CPU Load Stopped
-                         ▼
-                 CPU Utilization ↓
-                         │
-                         ▼
-              Target Tracking Policy
-                         │
-                         ▼
-                    SCALE IN
-                         │
-                         ▼
-                   1 EC2 Instance
-```
-
-### Observed result
-
-| Test stage | Observed capacity |
-|---|---:|
-| Initial state | 2 |
-| High CPU / scale-out | 3 |
-| After load reduction / scale-in | 1 |
-
-This demonstrates both directions of horizontal scaling within the configured limits.
-
----
-
-# 10. 📸 Complete Implementation Evidence
-
-### AWS Region
-
-![AWS Region](screenshots/01-aws-region.jpg)
-
-### Security Group
-
-![Security Group](screenshots/02-security-group.jpg)
-
-### User Data
-
-![User Data](screenshots/03-user-data.jpg)
-
-### Launch Template
-
-![Launch Template](screenshots/04-launch-template.jpg)
-
-### ASG — Launch Template
-
-![ASG Launch Template](screenshots/05-asg-launch-template.jpg)
-
-### ASG — Network
-
-![ASG Network](screenshots/06-asg-network.jpg)
-
-### ASG — Capacity
-
-![ASG Capacity](screenshots/07-asg-capacity.jpg)
-
-### Scaling Policy
-
-![Scaling Policy](screenshots/08-scaling-policy.jpg)
-
-### ASG Created
-
-![ASG Created](screenshots/09-asg-created.jpg)
-
-### Two EC2 Instances
-
-![Two EC2 Instances](screenshots/10-two-ec2-instances.jpg)
-
-### Web Server — Instance 1
-
-![Web Server Instance 1](screenshots/11-web-server-instance-1.jpg)
-
-### Web Server — Instance 2
-
-![Web Server Instance 2](screenshots/12-web-server-instance-2.jpg)
-
-### Two In-Service Instances
-
-![Two In-Service Instances](screenshots/13-asg-two-inservice.jpg)
-
-### Scaling Policy Verification
-
-![Scaling Policy Verification](screenshots/14-scaling-policy.jpg)
-
-### High CPU CloudWatch Metrics
-
-![High CPU CloudWatch Metrics](screenshots/15-high-cpu-cloudwatch.jpg)
-
-### Scale-Out — 3 Instances
-
-![Scale-Out](screenshots/16-scale-out-3-instances.jpg)
-
-### Third Instance Web Server
-
-![Third Instance Web Server](screenshots/17-third-instance-web-server.jpg)
-
-### Scale-In
 
 ![Scale-In](screenshots/18-scale-in-2-instances.jpg)
 
-### Final ASG Verification
+The filename `18-scale-in-2-instances.jpg` is retained from the original project repository; the screenshot itself shows the observed one-instance state.
+
+### Final verification screenshot
+
+The final captured ASG view is also retained:
 
 ![Final ASG Verification](screenshots/19-final-asg-verification.jpg)
 
+> This final screenshot was captured while the ASG console displayed **Desired capacity = 2** and an **Updating capacity** status. Therefore, it is treated as final implementation evidence rather than proof of a permanently settled capacity value.
+
 ---
 
-# 11. 📁 Project Structure
+# 10. 🔄 Observed Scaling Timeline
+
+Based on the captured AWS Console evidence:
+
+| Stage | Observed state |
+|---|---|
+| Initial test | 2 EC2 instances |
+| CPU load generated | Elevated CPU utilization |
+| Scale-out | 3 EC2 instances |
+| New instance verification | Third instance served the Apache page |
+| Scale-in | 1 EC2 instance / desired capacity shown as 1 |
+| Final console capture | Desired capacity shown as 2 while capacity was updating |
+
+This sequence demonstrates the intended **scale-out and scale-in behavior** while also preserving the actual state shown in each screenshot.
+
+---
+
+# 11. 🧠 Key AWS Concepts Demonstrated
+
+## Horizontal Scaling
+
+The application scales by changing the **number of EC2 instances**, rather than increasing the size of one existing instance.
+
+```text
+Scale Out:
+2 EC2 → 3 EC2
+
+Scale In:
+3 EC2 → fewer EC2 instances
+```
+
+## Infrastructure Automation
+
+The combination of Launch Template + User Data provides repeatable instance provisioning:
+
+```text
+Launch Template
+      ↓
+New EC2 Instance
+      ↓
+User Data executes
+      ↓
+Apache installed
+      ↓
+Instance ID inserted into page
+      ↓
+Web server available
+```
+
+## Metric-Based Scaling
+
+The Target Tracking policy uses CPU utilization as the scaling signal:
+
+```text
+Average CPU Utilization
+          ↓
+Target Tracking Policy
+          ↓
+Adjust ASG Desired Capacity
+```
+
+---
+
+# 12. 📁 Repository Structure
 
 ```text
 AWS-Auto-Scaling-Web-Server/
@@ -559,204 +570,163 @@ AWS-Auto-Scaling-Web-Server/
     └── 19-final-asg-verification.jpg
 ```
 
-> The `*-v2.jpg` screenshots are retained in the repository as supporting evidence. The main README references the primary screenshots to keep the documentation clean and avoid duplicate evidence.
+---
+
+# 13. ✅ Requirement Validation
+
+| Requirement | Evidence / Implementation |
+|---|---|
+| EC2 Launch Template | `autoscaling-web-template` |
+| Auto Scaling Group | `autoscaling-web-asg` |
+| Minimum capacity | `1` |
+| Desired capacity | `2` configured initially |
+| Maximum capacity | `3` |
+| Automatic web-server deployment | EC2 User Data + Apache |
+| Monitoring metric | Average CPU Utilization |
+| Scaling policy | Target Tracking |
+| CPU target | `50%` |
+| Scale-out | 2 → 3 instances observed |
+| New instance configuration | Third instance served Apache page |
+| Scale-in | Reduced capacity observed |
+| Screenshots | 19 primary/additional evidence images retained |
 
 ---
 
-# 12. ✅ Validation Checklist
+# 14. 🔐 Security and Production Considerations
 
-| Requirement | Status |
-|---|:---:|
-| EC2 Launch Template created | ✅ |
-| Auto Scaling Group created | ✅ |
-| Minimum capacity configured | ✅ |
-| Desired capacity configured | ✅ |
-| Maximum capacity configured | ✅ |
-| Apache installed automatically | ✅ |
-| EC2 User Data configured | ✅ |
-| Instance ID displayed on web page | ✅ |
-| Target Tracking policy configured | ✅ |
-| CloudWatch CPU metrics observed | ✅ |
-| CPU load generated for testing | ✅ |
-| Scale-out demonstrated | ✅ |
-| Third instance launched automatically | ✅ |
-| New instance web server verified | ✅ |
-| Scale-in demonstrated | ✅ |
-| Final ASG state verified | ✅ |
+This repository demonstrates an AWS learning/test environment. A production architecture should additionally consider:
 
----
+- **Least-privilege IAM:** use narrowly scoped IAM roles and policies.
+- **Network isolation:** place application instances in appropriate private subnets where possible.
+- **Restricted ingress:** allow only required ports and trusted sources.
+- **HTTPS:** use TLS for production web traffic.
+- **Application Load Balancer:** place an ALB in front of the ASG when a stable application endpoint and traffic distribution are required.
+- **Secrets management:** use AWS Secrets Manager or Systems Manager Parameter Store instead of hard-coding credentials.
+- **Centralized logging:** collect application/system logs for troubleshooting and auditing.
+- **CloudWatch alarms:** configure operational alarms in addition to scaling policies.
+- **Launch Template versioning:** use controlled versions for repeatable deployments.
+- **Instance metadata security:** keep IMDSv2 enabled where appropriate.
 
-# 13. 🔐 Security & Production Considerations
+### Why an Application Load Balancer is not included
 
-This project is designed as an AWS learning/demo environment. A production implementation should additionally consider:
-
-- Use the **principle of least privilege** for IAM permissions.
-- Restrict security-group ingress to trusted sources.
-- Avoid exposing SSH to the entire internet.
-- Prefer **private subnets** for application instances where appropriate.
-- Use an **Application Load Balancer (ALB)** for a stable application endpoint and traffic distribution.
-- Use **HTTPS/TLS** for production web traffic.
-- Store secrets in **AWS Secrets Manager** or **AWS Systems Manager Parameter Store** instead of hard-coding them.
-- Consider **IAM roles for EC2** rather than long-lived access keys.
-- Add centralized logging and monitoring.
-- Define appropriate CloudWatch alarms for operational visibility.
-- Use immutable/versioned Launch Templates for controlled deployments.
-
-### Why an Application Load Balancer is not included here
-
-This project focuses specifically on the requested:
+The project requirement is centered on:
 
 ```text
 Launch Template
-        +
+      +
 Auto Scaling Group
-        +
+      +
 CloudWatch / Target Tracking
-        +
+      +
 Automatically deployed web server
 ```
 
-The web server is therefore tested directly through the EC2 instance public address. In a production architecture, an **Application Load Balancer** would normally be placed in front of the ASG so users do not need to know individual instance addresses.
+Therefore, the current implementation verifies the EC2 web servers directly rather than adding an Application Load Balancer as another infrastructure component.
 
 ---
 
-# 14. 🧹 Cleanup / Cost Control
+# 15. 💰 AWS Cost and Cleanup
 
-AWS resources can incur charges depending on account configuration and usage.
+AWS resources may incur charges depending on account, region, resource type, and usage.
 
-After completing the demonstration, clean up resources that are no longer required:
+After completing the demonstration, remove resources that are no longer required.
 
-1. Reduce or delete the Auto Scaling Group.
-2. Delete the Launch Template if it is no longer needed.
-3. Remove unused security groups.
-4. Remove other resources created specifically for the test.
-5. Verify the EC2 console and billing dashboard to ensure no unwanted resources remain.
+Typical cleanup:
 
-> **Important:** Deleting or reducing an Auto Scaling Group can terminate its managed EC2 instances depending on the selected options. Perform cleanup only after you have finished collecting project evidence.
+1. Reduce/delete the Auto Scaling Group when the project is finished.
+2. Delete the Launch Template if it is no longer required.
+3. Remove unused security groups and other test resources when safe.
+4. Verify that no unwanted EC2/EBS resources remain.
+5. Review the AWS Billing/Cost Management console.
 
----
-
-# 15. 🎯 Key Concepts Demonstrated
-
-### Horizontal Scaling
-
-Instead of upgrading one EC2 instance to a larger instance type, the application scales by adding or removing instances.
-
-```text
-2 instances
-     ↓
-3 instances
-```
-
-This is called **horizontal scaling** (scale-out).
-
-### Infrastructure Automation
-
-The Launch Template + User Data combination allows every new EC2 instance to be configured automatically.
-
-```text
-Launch Template
-      ↓
-New EC2 Instance
-      ↓
-User Data
-      ↓
-Apache Installation
-      ↓
-Web Page Available
-```
-
-### Self-Adjusting Capacity
-
-The Auto Scaling Group uses a Target Tracking policy to adjust capacity according to CPU utilization.
-
-```text
-High CPU  → Scale Out
-Low CPU   → Scale In
-```
+> **Warning:** Changing or deleting an Auto Scaling Group can terminate managed EC2 instances depending on the selected options. Collect your screenshots and project evidence before cleanup.
 
 ---
 
-# 16. 🏁 Final Result
+# 16. 🧹 Reproduction Guide
 
-The project successfully demonstrates an automated and scalable EC2 web-server environment.
+The following is the high-level sequence used to reproduce the project:
 
-### Final configuration
+### Step 1 — Select the AWS region
 
-```text
-AWS Region
-└── us-east-1
-
-Launch Template
-└── autoscaling-web-template
-
-Auto Scaling Group
-└── autoscaling-web-asg
-
-Capacity
-├── Minimum  = 1
-├── Desired  = 2
-└── Maximum  = 3
-
-Scaling Policy
-└── Target Tracking
-    └── Average CPU Utilization = 50%
-
-Web Server
-└── Apache HTTP Server
-```
-
-### Demonstrated behavior
+Use:
 
 ```text
-                    ┌───────────────────┐
-                    │  Initial Capacity │
-                    │   2 Instances     │
-                    └─────────┬─────────┘
-                              │
-                         High CPU Load
-                              │
-                              ▼
-                    ┌───────────────────┐
-                    │    Scale-Out      │
-                    │   3 Instances     │
-                    └─────────┬─────────┘
-                              │
-                       Load Removed
-                              │
-                              ▼
-                    ┌───────────────────┐
-                    │     Scale-In      │
-                    │   1 Instance      │
-                    └───────────────────┘
+us-east-1
 ```
 
-The implementation validates the complete workflow required for an EC2 Auto Scaling environment:
+### Step 2 — Create the security group
 
-**Launch Template → Automated Web Server Deployment → Auto Scaling Group → CloudWatch CPU Metrics → Scale-Out → Scale-In**
+Create:
+
+```text
+autoscaling-web-sg
+```
+
+Allow the HTTP access required for testing.
+
+### Step 3 — Create the Launch Template
+
+Configure:
+
+```text
+Name          : autoscaling-web-template
+AMI           : Amazon Linux 2023
+Instance type : t3.micro
+Security group: autoscaling-web-sg
+User Data     : Apache installation + instance ID page
+```
+
+### Step 4 — Create the Auto Scaling Group
+
+Use the Launch Template and configure:
+
+```text
+Minimum capacity : 1
+Desired capacity : 2
+Maximum capacity : 3
+```
+
+### Step 5 — Configure Target Tracking
+
+Use:
+
+```text
+Metric       : Average CPU Utilization
+Target       : 50%
+Warmup       : 300 seconds
+```
+
+### Step 6 — Verify web-server provisioning
+
+Open the web page served by the EC2 instance and verify that the page displays the instance ID.
+
+### Step 7 — Generate CPU load
+
+For testing:
+
+```bash
+sudo dnf install -y stress
+stress --cpu 2 --timeout 600
+```
+
+### Step 8 — Observe scaling
+
+Monitor:
+
+- EC2 CPU utilization.
+- Auto Scaling Group desired capacity.
+- Number of `InService` instances.
+- Instance health.
+- Newly launched instance web-server availability.
+
+### Step 9 — Stop the load
+
+After the test, stop the workload and allow the Auto Scaling policy to respond to the lower utilization.
 
 ---
 
-## 👨‍💻 Project Information
-
-| Property | Value |
-|---|---|
-| **Project** | AWS EC2 Auto Scaling Web Server |
-| **AWS Region** | `us-east-1` |
-| **Launch Template** | `autoscaling-web-template` |
-| **Auto Scaling Group** | `autoscaling-web-asg` |
-| **Instance Type** | `t3.micro` |
-| **Web Server** | Apache HTTP Server |
-| **Scaling Method** | Target Tracking |
-| **Scaling Metric** | Average CPU Utilization |
-| **Target Value** | `50%` |
-| **Minimum Capacity** | `1` |
-| **Desired Capacity** | `2` |
-| **Maximum Capacity** | `3` |
-
----
-
-## 📚 AWS Documentation
+# 17. 📚 Official AWS Documentation
 
 - [Amazon EC2 Auto Scaling](https://docs.aws.amazon.com/autoscaling/ec2/userguide/what-is-amazon-ec2-auto-scaling.html)
 - [EC2 Launch Templates](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-launch-templates.html)
@@ -767,6 +737,42 @@ The implementation validates the complete workflow required for an EC2 Auto Scal
 
 ---
 
+# 18. 🏁 Conclusion
+
+This project demonstrates an end-to-end **AWS EC2 Auto Scaling web-server environment** using:
+
+- EC2 Launch Template
+- EC2 Auto Scaling Group
+- Amazon Linux 2023
+- Apache HTTP Server
+- EC2 User Data
+- CloudWatch CPU metrics
+- Target Tracking Scaling Policy
+- Horizontal scale-out
+- Horizontal scale-in
+
+The captured AWS Console evidence shows the infrastructure configuration, automated web-server deployment, elevated CPU monitoring, scale-out to three instances, verification of the newly launched web server, and subsequent scale-in behavior.
+
+---
+
+## 👨‍💻 Project Summary
+
+```text
+Project        : AWS EC2 Auto Scaling Web Server
+Region         : us-east-1
+Launch Template: autoscaling-web-template
+ASG            : autoscaling-web-asg
+AMI            : Amazon Linux 2023
+Instance Type  : t3.micro
+Web Server     : Apache HTTP Server
+Metric         : Average CPU Utilization
+Target         : 50%
+Min Capacity   : 1
+Desired        : 2
+Max Capacity   : 3
+Warmup         : 300 seconds
+```
+
 <p align="center">
-  <b>Built as an AWS hands-on project to demonstrate automated provisioning, monitoring, and horizontal scaling.</b>
+  <b>EC2 Launch Template → Auto Scaling Group → CloudWatch Target Tracking → Scale-Out / Scale-In</b>
 </p>
